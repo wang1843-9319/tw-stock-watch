@@ -594,6 +594,31 @@
       body { height: auto; overflow: auto; }
       header { height: auto; min-height: 60px; align-items: flex-start; flex-direction: column; gap: 4px; padding: 12px 16px; }
       main { grid-template-columns: 1fr; padding: 10px; height: auto; }
+      .board {
+        height: auto;
+        max-height: none;
+        overflow: visible;
+        scroll-snap-type: none;
+      }
+      .board-page {
+        height: auto;
+        overflow: visible;
+        scroll-snap-align: none;
+      }
+      .chart-page {
+        height: auto;
+        min-height: 0;
+      }
+      .canvas-wrap {
+        height: 430px;
+        min-height: 0;
+        grid-template-rows: minmax(0, 3fr) 30px minmax(0, 1fr);
+        overflow: hidden;
+      }
+      .quote {
+        flex-wrap: wrap;
+        gap: 6px 10px;
+      }
       aside { grid-template-columns: 1fr; }
       aside .toolbar,
       aside > .small,
@@ -638,6 +663,8 @@
       .rules, .alerts { grid-template-columns: 1fr; }
       .signal-grid { grid-template-columns: 1fr; }
       .price { font-size: 28px; }
+      .canvas-wrap { height: 380px; padding: 5px 10px 4px; }
+      .indicator-readout { display: none; }
     }
   </style>
 </head>
