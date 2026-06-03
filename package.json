@@ -1,0 +1,12 @@
+﻿{
+  "name": "tw-stock-watch-render",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Taiwan stock watch web app for Render",
+  "scripts": {
+    "start": "node tw-stock-server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

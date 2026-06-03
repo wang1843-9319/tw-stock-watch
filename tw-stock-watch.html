@@ -1,0 +1,2015 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>台股看盤提醒</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --ink: #1c2430;
+      --muted: #667085;
+      --line: #d9dee7;
+      --green: #0c8f57;
+      --red: #c7372f;
+      --blue: #2864d8;
+      --amber: #ad6b00;
+      --shadow: 0 10px 28px rgba(21, 31, 47, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Noto Sans TC", system-ui, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      height: 100vh;
+      overflow: hidden;
+    }
+    header {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 22px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+    }
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 750;
+      letter-spacing: 0;
+    }
+    main {
+      display: grid;
+      grid-template-columns: 500px minmax(0, 1fr);
+      gap: 16px;
+      padding: 12px;
+      height: calc(100vh - 56px);
+      min-height: 0;
+      overflow: hidden;
+    }
+    aside, section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+    aside {
+      padding: 12px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 176px;
+      grid-auto-rows: max-content;
+      gap: 10px;
+      min-height: 0;
+      overflow: auto;
+    }
+    aside .toolbar,
+    aside > .small,
+    aside .watchlist,
+    aside #refreshBtn,
+    aside label,
+    aside > .small:last-child {
+      grid-column: 1;
+    }
+    .toolbar {
+      display: grid;
+      grid-template-columns: 1fr 44px;
+      gap: 8px;
+    }
+    .timeframe-controls {
+      display: grid;
+      grid-template-columns: 94px 116px;
+      gap: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .timeframe-controls select {
+      border: 0;
+      border-radius: 0;
+      background: #fff;
+    }
+    .timeframe-controls select + select {
+      border-left: 1px solid var(--line);
+    }
+    input, select, button {
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font: inherit;
+      background: #fff;
+      color: var(--ink);
+    }
+    input, select { padding: 0 10px; width: 100%; }
+    button {
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-weight: 650;
+    }
+    button.primary {
+      background: var(--blue);
+      color: white;
+      border-color: var(--blue);
+    }
+    button.ghost { background: #f8fafc; }
+    .watchlist {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .stock {
+      width: 100%;
+      padding: 10px;
+      min-height: 62px;
+      justify-content: space-between;
+      text-align: left;
+      background: #fff;
+    }
+    .stock.active { border-color: var(--blue); box-shadow: inset 3px 0 0 var(--blue); }
+    .symbol { font-weight: 760; font-size: 16px; }
+    .sub { color: var(--muted); font-size: 12px; }
+    .board {
+      display: block;
+      min-width: 0;
+      min-height: 0;
+      height: 100%;
+      max-height: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scroll-snap-type: y proximity;
+      scrollbar-width: thin;
+      scrollbar-color: #8d97a8 #eef2f7;
+    }
+    .board::-webkit-scrollbar { width: 12px; }
+    .board::-webkit-scrollbar-track { background: #eef2f7; border-left: 1px solid var(--line); }
+    .board::-webkit-scrollbar-thumb { background: #8d97a8; border-radius: 8px; border: 2px solid #eef2f7; }
+    .board-page {
+      height: 100%;
+      min-height: 0;
+      scroll-snap-align: start;
+      overflow: hidden;
+    }
+    .chart-page {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      height: 100%;
+      min-height: 0;
+    }
+    .controls-page {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
+      background: #fff;
+    }
+    .topline {
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+    .recommend-row {
+      display: grid;
+      grid-template-columns: auto 122px minmax(0, 1fr);
+      gap: 6px;
+      align-items: center;
+      min-height: 34px;
+      min-width: 0;
+    }
+    .recommend-title {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+    .recommend-row select { height: 30px; }
+    .recommend-list {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      min-width: 0;
+      scrollbar-width: thin;
+    }
+    .recommend-stock {
+      height: 30px;
+      flex: 0 0 auto;
+      padding: 0 8px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .recommend-stock.active {
+      border-color: var(--blue);
+      color: var(--blue);
+      background: #f4f8ff;
+    }
+    .recommend-stock .rec-pct {
+      margin-left: 4px;
+      font-size: 11px;
+      font-weight: 750;
+    }
+    .text-up { color: var(--red); }
+    .text-down { color: var(--green); }
+    .text-flat { color: var(--muted); }
+    aside .recommend-row {
+      grid-column: 2;
+      grid-row: 1 / span 7;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+      min-height: 0;
+      padding: 12px 0 0;
+      background: transparent;
+    }
+    aside .recommend-title {
+      font-size: 15px;
+      color: var(--ink);
+      text-align: center;
+    }
+    aside .recommend-row select {
+      width: 100%;
+      height: 40px;
+    }
+    aside .recommend-list {
+      flex-direction: column;
+      overflow: visible;
+      gap: 8px;
+    }
+    aside .recommend-stock {
+      width: 100%;
+      height: 38px;
+      justify-content: center;
+      font-size: 14px;
+    }
+    .quote {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      flex-wrap: nowrap;
+      min-width: 0;
+    }
+    .quote .symbol { flex: 0 1 auto; }
+    .quote .price { flex: 0 0 auto; }
+    .quote .delta,
+    .quote .open-gap { flex: 0 0 auto; }
+    .price { font-size: 30px; font-weight: 780; }
+    .open-gap {
+      min-height: 28px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #f8fafc;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .open-gap.up { color: var(--red); }
+    .open-gap.down { color: var(--green); }
+    .delta.up { color: var(--red); }
+    .delta.down { color: var(--green); }
+    .canvas-wrap {
+      min-height: 0;
+      padding: 5px 14px 4px;
+      display: grid;
+      grid-template-rows: minmax(0, 3fr) 28px minmax(0, 1fr);
+      gap: 3px;
+      overflow: hidden;
+    }
+    canvas {
+      width: 100%;
+      display: block;
+    }
+    #chart { height: 100%; min-height: 0; }
+    #indicatorChart { height: 100%; min-height: 0; }
+    .indicator-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      height: 28px;
+      border-top: 1px solid var(--line);
+      padding-top: 3px;
+    }
+    .indicator-tabs {
+      display: inline-flex;
+      gap: 4px;
+      padding: 2px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f8fafc;
+    }
+    .indicator-tab {
+      height: 22px;
+      min-width: 54px;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      border-radius: 6px;
+    }
+    .indicator-tab.active {
+      background: #fff;
+      color: var(--ink);
+      box-shadow: 0 1px 4px rgba(21, 31, 47, 0.12);
+    }
+    .indicator-readout {
+      color: var(--muted);
+      font-size: 11px;
+      text-align: right;
+    }
+    .chart-stage {
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .crosshair-info {
+      position: absolute;
+      left: 58px;
+      top: 18px;
+      max-width: min(520px, calc(100% - 150px));
+      min-height: 32px;
+      display: none;
+      align-items: center;
+      padding: 6px 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, .92);
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 650;
+      line-height: 1.45;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .crosshair-info .date { color: var(--ink); }
+    .chart-mode {
+      display: inline-flex;
+      gap: 4px;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f8fafc;
+    }
+    .chart-mode button {
+      height: 22px;
+      min-width: 54px;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      border-radius: 6px;
+    }
+    .chart-mode button.active {
+      background: #fff;
+      color: var(--ink);
+      box-shadow: 0 1px 4px rgba(21, 31, 47, 0.12);
+    }
+    .rules {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(150px, 1fr));
+      gap: 4px 8px;
+      padding: 5px 14px;
+      border-top: 1px solid var(--line);
+      background: #fbfcfe;
+      min-height: 0;
+      overflow: hidden;
+      flex: 0 0 auto;
+    }
+    label {
+      display: grid;
+      gap: 2px;
+      font-size: 10px;
+      color: var(--muted);
+      font-weight: 650;
+    }
+    .ma-selector {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+      min-height: 24px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 650;
+    }
+    .ma-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 22px;
+      padding: 0 7px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .ma-toggle input {
+      width: 12px;
+      height: 12px;
+      margin: 0;
+      accent-color: var(--blue);
+    }
+    .alerts {
+      padding: 2px 14px 6px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      min-height: 0;
+      overflow: hidden;
+      flex: 0 0 auto;
+    }
+    .alert {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px 8px;
+      background: #fff;
+      min-height: 46px;
+      overflow: hidden;
+    }
+    .alert strong { display: inline; margin: 0 5px 0 0; font-size: 10px; }
+    .alert strong.triggered { color: var(--red); }
+    .alert .small { display: inline; font-size: 9px; line-height: 1.25; }
+    .alert.buy { border-color: rgba(199, 55, 47, .35); }
+    .alert.sell { border-color: rgba(12, 143, 87, .35); }
+    .alert.wait { border-color: rgba(173, 107, 0, .35); }
+    .position-panel {
+      display: grid;
+      grid-template-columns: minmax(260px, 2fr) minmax(110px, 1fr) minmax(190px, 1.35fr) 92px 92px;
+      gap: 6px;
+      padding: 8px 14px 10px;
+      align-self: start;
+      width: 100%;
+      flex: 0 0 auto;
+    }
+    .entry-lots {
+      display: grid;
+      gap: 3px;
+    }
+    .entry-lot {
+      display: grid;
+      grid-template-columns: 88px minmax(72px, 1fr) 58px;
+      gap: 4px;
+    }
+    .entry-lot input[type="date"] {
+      padding: 0 4px;
+      font-size: 10px;
+    }
+    .position-panel input {
+      height: 30px;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 0 8px;
+      min-width: 0;
+    }
+    .add-price-control {
+      display: grid;
+      grid-template-columns: minmax(96px, 1fr) 64px;
+      gap: 4px;
+      min-width: 0;
+    }
+    .add-price-control select {
+      height: 30px;
+      padding: 0 4px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .position-panel input[readonly] {
+      background: #f8fafc;
+      color: var(--muted);
+    }
+    .position-summary {
+      grid-column: 1 / -1;
+      min-height: 22px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 650;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    .signal-page {
+      min-height: 100%;
+      padding: 0 14px 12px;
+      background: #fff;
+      display: flex;
+      align-items: flex-start;
+    }
+    .signal-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      width: 100%;
+      margin-top: 0;
+      padding: 4px 14px 12px;
+      flex: 0 0 auto;
+    }
+    .signal-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fbfcfe;
+      display: grid;
+      gap: 10px;
+    }
+    .signal-card h2 {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.2;
+    }
+    .signal-tags {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+    .signal-tag {
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(12, 143, 87, .35);
+      border-radius: 7px;
+      color: var(--green);
+      background: #fff;
+      font-size: 13px;
+      font-weight: 800;
+      text-align: center;
+    }
+    .signal-tag.active {
+      border-color: rgba(199, 55, 47, .45);
+      color: var(--red);
+      background: #fff7f7;
+    }
+    .signal-settings {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .signal-settings input {
+      height: 32px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .signal-note {
+      min-height: 36px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .small {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    #quoteMeta {
+      max-width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .status {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    @media (max-width: 700px) {
+      html, body { height: auto; overflow: auto; }
+      body { height: auto; overflow: auto; }
+      header { height: auto; min-height: 60px; align-items: flex-start; flex-direction: column; gap: 4px; padding: 12px 16px; }
+      main { grid-template-columns: 1fr; padding: 10px; height: auto; }
+      aside { grid-template-columns: 1fr; }
+      aside .toolbar,
+      aside > .small,
+      aside .watchlist,
+      aside #refreshBtn,
+      aside label,
+      aside > .small:last-child,
+      aside .recommend-row { grid-column: 1; grid-row: auto; }
+      aside .recommend-list { flex-direction: row; overflow-x: auto; }
+      aside .recommend-stock { width: auto; }
+      .rules, .alerts { grid-template-columns: 1fr 1fr; }
+      .topline { grid-template-columns: 1fr; }
+      .recommend-row { grid-template-columns: auto minmax(110px, 140px) minmax(0, 1fr); }
+    }
+    @media (max-height: 760px) and (min-width: 901px) {
+      header { height: 50px; padding: 0 18px; }
+      h1 { font-size: 20px; }
+      main { grid-template-columns: 490px minmax(0, 1fr); height: calc(100vh - 50px); gap: 10px; padding: 10px; }
+      .topline { padding: 10px 12px; }
+      aside .recommend-row select { height: 34px; }
+      aside .recommend-stock { height: 34px; font-size: 13px; }
+      .price { font-size: 27px; }
+      .quote { gap: 8px; }
+      .open-gap { font-size: 12px; padding: 0 6px; }
+      .canvas-wrap { grid-template-rows: minmax(0, 3fr) 26px minmax(0, 1fr); padding: 4px 12px 3px; }
+      #chart { min-height: 0; }
+      #indicatorChart { height: 100%; min-height: 0; }
+      .rules { padding: 4px 12px; gap: 3px 6px; }
+      .alerts { padding: 2px 12px 6px; }
+      .alert { min-height: 42px; padding: 5px 7px; }
+      .position-panel { grid-template-columns: minmax(240px, 2fr) minmax(98px, 1fr) minmax(170px, 1.35fr) 80px 80px; padding: 7px 12px 8px; gap: 5px; }
+      .position-panel input, .add-price-control select { height: 28px; font-size: 11px; }
+      .signal-page { padding: 0 12px 10px; }
+      .signal-card { padding: 10px; gap: 8px; }
+      .signal-tag { min-height: 30px; font-size: 12px; }
+      .small { line-height: 1.15; }
+      input, select, button { height: 30px; }
+      .indicator-tab, .chart-mode button { height: 21px; }
+      .ma-toggle { height: 21px; }
+    }
+    @media (max-width: 560px) {
+      .rules, .alerts { grid-template-columns: 1fr; }
+      .signal-grid { grid-template-columns: 1fr; }
+      .price { font-size: 28px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>台股看盤提醒</h1>
+    <div class="status" id="marketStatus">準備中</div>
+  </header>
+  <main>
+    <aside>
+      <div class="toolbar">
+        <input id="symbolInput" value="2330" aria-label="股票代號" />
+        <button class="primary" id="addBtn" title="加入">＋</button>
+      </div>
+      <div class="small">輸入台股代號即可，例如 2330、2317、2454。系統會自動轉成 Yahoo Finance 的 `.TW` 代號。</div>
+      <div class="recommend-row">
+        <div class="recommend-title">優質股票推薦</div>
+        <select id="industrySelect" aria-label="產業選擇"></select>
+        <div class="recommend-list" id="recommendList"></div>
+      </div>
+      <div class="watchlist" id="watchlist"></div>
+      <button class="ghost" id="refreshBtn">重新整理</button>
+      <label>
+        CSV 匯入備援
+        <input id="csvFile" type="file" accept=".csv" />
+      </label>
+      <div class="small">CSV 欄位可用：date, open, high, low, close, volume。</div>
+    </aside>
+
+    <section class="board">
+      <div class="board-page chart-page">
+        <div class="topline">
+          <div>
+            <div class="quote">
+              <span class="symbol" id="activeName">2330.TW</span>
+              <span class="price" id="price">--</span>
+              <span class="delta" id="delta">--</span>
+              <span class="open-gap" id="openGap">開盤差幅 --</span>
+            </div>
+            <div class="small" id="quoteMeta">等待資料</div>
+          </div>
+          <div class="timeframe-controls">
+            <select id="timeframe" aria-label="技術分析週期">
+              <option value="1wk">週</option>
+              <option value="1d" selected>日</option>
+              <option value="60m">60分</option>
+              <option value="30m">30分</option>
+              <option value="15m">15分</option>
+              <option value="5m">5分</option>
+            </select>
+            <select id="range" aria-label="資料範圍">
+              <option value="3mo">3 個月</option>
+              <option value="6mo" selected>6 個月</option>
+              <option value="1y">1 年</option>
+              <option value="2y">2 年</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="canvas-wrap">
+          <div class="chart-stage">
+            <canvas id="chart"></canvas>
+            <div class="crosshair-info" id="crosshairInfo"></div>
+          </div>
+          <div class="indicator-bar">
+            <div class="indicator-tabs" aria-label="副圖切換">
+              <button class="indicator-tab active" data-indicator="volume">成交量</button>
+              <button class="indicator-tab" data-indicator="kd">KD</button>
+              <button class="indicator-tab" data-indicator="macd">MACD</button>
+            </div>
+            <div class="indicator-readout" id="indicatorReadout">成交量</div>
+          </div>
+          <canvas id="indicatorChart"></canvas>
+        </div>
+      </div>
+
+      <div class="board-page controls-page">
+        <div class="rules">
+          <div class="ma-selector" aria-label="均線選擇">
+            均線
+            <label class="ma-toggle"><input type="checkbox" class="ma-check" value="5" checked />MA5</label>
+            <label class="ma-toggle"><input type="checkbox" class="ma-check" value="10" checked />MA10</label>
+            <label class="ma-toggle"><input type="checkbox" class="ma-check" value="20" checked />MA20</label>
+            <label class="ma-toggle"><input type="checkbox" class="ma-check" value="60" checked />MA60</label>
+            <span class="chart-mode" aria-label="主圖模式">
+              <button class="chart-mode-btn active" data-chart-mode="candle">K 線</button>
+              <button class="chart-mode-btn" data-chart-mode="line">走勢圖</button>
+            </span>
+          </div>
+          <label>進場：EMA8 金叉 EMA21 <select id="buyMode"><option value="emaSpeed">速度流</option><option value="off">關閉</option></select></label>
+          <label>RSI 低檔回升門檻 <input id="rsiTrigger" type="number" min="1" max="99" value="45" /></label>
+          <label>止損百分比 <input id="stopLoss" type="number" min="1" max="30" step="0.5" value="7" /></label>
+          <label>停利百分比 <input id="takeProfit" type="number" min="1" max="80" step="0.5" value="15" /></label>
+        </div>
+
+        <div class="alerts">
+          <div class="alert buy" id="buyAlert"><strong>進場觀察</strong><span class="small">等待資料</span></div>
+          <div class="alert sell" id="riskAlert"><strong>止損退場</strong><span class="small">等待資料</span></div>
+          <div class="alert wait" id="profitAlert"><strong>停利觀察</strong><span class="small">等待資料</span></div>
+        </div>
+
+        <div class="position-panel">
+          <label>股票進價 / 日期 / 股數
+            <div class="entry-lots" id="entryLots">
+              <div class="entry-lot"><input class="lot-date" type="date" /><input class="lot-price" type="number" min="0" step="0.01" placeholder="進價1" /><input class="lot-shares" type="number" min="0" step="1" placeholder="股數" /></div>
+              <div class="entry-lot"><input class="lot-date" type="date" /><input class="lot-price" type="number" min="0" step="0.01" placeholder="進價2" /><input class="lot-shares" type="number" min="0" step="1" placeholder="股數" /></div>
+              <div class="entry-lot"><input class="lot-date" type="date" /><input class="lot-price" type="number" min="0" step="0.01" placeholder="進價3" /><input class="lot-shares" type="number" min="0" step="1" placeholder="股數" /></div>
+              <div class="entry-lot"><input class="lot-date" type="date" /><input class="lot-price" type="number" min="0" step="0.01" placeholder="進價4" /><input class="lot-shares" type="number" min="0" step="1" placeholder="股數" /></div>
+              <div class="entry-lot"><input class="lot-date" type="date" /><input class="lot-price" type="number" min="0" step="0.01" placeholder="進價5" /><input class="lot-shares" type="number" min="0" step="1" placeholder="股數" /></div>
+            </div>
+          </label>
+          <label>成本均價 <input id="positionAvg" type="number" readonly placeholder="0.00" /></label>
+          <label>股價回檔加碼價
+            <span class="add-price-control">
+              <input id="positionAddPrice" type="number" min="0" step="0.01" placeholder="0.00" />
+              <select id="positionPullbackPct" aria-label="回檔比例">
+                <option value="5">5%</option>
+                <option value="10" selected>10%</option>
+                <option value="15">15%</option>
+              </select>
+            </span>
+          </label>
+          <label>止損百分比 <input id="positionStopPct" type="number" min="0" max="80" step="0.5" value="7" /></label>
+          <label>停利百分比 <input id="positionTakePct" type="number" min="0" max="200" step="0.5" value="15" /></label>
+          <div class="position-summary" id="positionSummary">輸入股票進價與股數後，會自動估算成本、止損價與停利價。</div>
+        </div>
+
+        <div class="signal-grid">
+          <div class="signal-card" id="longSignalCard">
+            <h2>長線投資</h2>
+            <div class="signal-tags">
+              <div class="signal-tag" id="longBuy" data-base="買入">買入</div>
+              <div class="signal-tag" id="longAdd" data-base="加碼">加碼</div>
+              <div class="signal-tag" id="longReduce" data-base="減碼">減碼</div>
+              <div class="signal-tag" id="longExit" data-base="可退場">可退場</div>
+            </div>
+            <div class="signal-settings">
+              <label>停損設定% <input id="longStopPct" type="number" min="1" max="80" step="0.5" value="12" /></label>
+              <label>停利設定% <input id="longTakePct" type="number" min="1" max="300" step="0.5" value="35" /></label>
+            </div>
+            <div class="signal-note" id="longSignalNote">長線模組讀月線，依 MA、RSI、KD、MACD 產生訊號。</div>
+          </div>
+
+          <div class="signal-card" id="shortSignalCard">
+            <h2>短線當沖投資</h2>
+            <div class="signal-tags">
+              <div class="signal-tag" id="shortBuy" data-base="買入">買入</div>
+              <div class="signal-tag" id="shortAdd" data-base="加碼">加碼</div>
+              <div class="signal-tag" id="shortReduce" data-base="減碼">減碼</div>
+              <div class="signal-tag" id="shortExit" data-base="可退場">可退場</div>
+            </div>
+            <div class="signal-settings">
+              <label>停損設定% <input id="shortStopPct" type="number" min="0.5" max="30" step="0.1" value="2" /></label>
+              <label>停利設定% <input id="shortTakePct" type="number" min="0.5" max="80" step="0.1" value="5" /></label>
+            </div>
+            <div class="signal-note" id="shortSignalNote">短線模組讀日線與分時資料，依趨勢、量能、KD、MACD 產生訊號。</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const state = {
+      symbols: ["2330.TW", "2317.TW", "2454.TW", "2881.TW"],
+      names: {
+        "2330.TW": "台積電",
+        "2317.TW": "鴻海",
+        "2454.TW": "聯發科",
+        "2881.TW": "富邦金",
+        "2308.TW": "台達電",
+        "2382.TW": "廣達",
+        "3711.TW": "日月光投控",
+        "3034.TW": "聯詠",
+        "3661.TW": "世芯-KY",
+        "2357.TW": "華碩",
+        "6669.TW": "緯穎",
+        "3231.TW": "緯創",
+        "2345.TW": "智邦",
+        "5871.TW": "中租-KY",
+        "2891.TW": "中信金",
+        "2882.TW": "國泰金",
+        "2886.TW": "兆豐金",
+        "2412.TW": "中華電",
+        "3045.TW": "台灣大",
+        "4904.TW": "遠傳",
+        "2324.TW": "仁寶",
+        "2376.TW": "技嘉",
+        "2377.TW": "微星",
+        "2395.TW": "研華",
+        "3017.TW": "奇鋐",
+        "3443.TW": "創意",
+        "3529.TW": "力旺",
+        "3653.TW": "健策",
+        "5274.TW": "信驊",
+        "6415.TW": "矽力*-KY",
+        "2801.TW": "彰銀",
+        "2809.TW": "京城銀",
+        "2880.TW": "華南金",
+        "2883.TW": "開發金",
+        "2884.TW": "玉山金",
+        "2885.TW": "元大金",
+        "1216.TW": "統一",
+        "1101.TW": "台泥",
+        "1402.TW": "遠東新",
+        "2912.TW": "統一超",
+        "2207.TW": "和泰車",
+        "2618.TW": "長榮航",
+        "2606.TW": "裕民",
+        "2610.TW": "華航",
+        "2637.TW": "慧洋-KY",
+        "2646.TW": "星宇航空",
+        "6505.TW": "台塑化",
+        "1303.TW": "南亞",
+        "2002.TW": "中鋼",
+        "2603.TW": "長榮",
+        "2609.TW": "陽明",
+        "2615.TW": "萬海",
+        "2303.TW": "聯電",
+        "6770.TW": "力積電",
+        "5347.TWO": "世界",
+        "3105.TWO": "穩懋",
+        "2337.TW": "旺宏",
+        "2408.TW": "南亞科",
+        "6488.TWO": "環球晶",
+        "2449.TW": "京元電子",
+        "6239.TW": "力成",
+        "2329.TW": "華泰",
+        "3264.TWO": "欣銓",
+        "6147.TWO": "頎邦",
+        "8150.TW": "南茂",
+        "6510.TW": "精測",
+        "6223.TWO": "旺矽",
+        "3374.TW": "精材",
+        "6187.TW": "萬潤",
+        "3131.TWO": "弘塑",
+        "3583.TW": "辛耘",
+        "3167.TW": "大量",
+        "3455.TW": "由田",
+        "6438.TW": "迅得",
+        "2467.TW": "志聖",
+        "6640.TW": "均華",
+        "5443.TWO": "均豪",
+        "6207.TW": "雷科",
+        "2379.TW": "瑞昱",
+        "3227.TWO": "原相",
+        "4966.TW": "譜瑞-KY",
+        "6643.TWO": "M31",
+        "3324.TWO": "雙鴻",
+        "6230.TW": "尼得科超眾",
+        "3081.TWO": "聯亞",
+        "3363.TWO": "上詮",
+        "3450.TW": "聯鈞",
+        "4908.TWO": "前鼎",
+        "4979.TWO": "華星光",
+        "3234.TWO": "光環",
+        "4977.TWO": "眾達-KY",
+        "6442.TW": "光聖",
+        "3163.TWO": "波若威",
+        "6546.TW": "正基",
+        "6414.TW": "樺漢",
+        "8050.TWO": "廣積",
+        "3022.TW": "威強電",
+        "3706.TW": "神達",
+        "6579.TW": "研揚",
+        "8114.TW": "振樺電",
+        "8234.TW": "新漢",
+        "2495.TW": "普安",
+        "3491.TWO": "昇達科",
+        "3596.TW": "智易",
+        "6285.TW": "啟碁",
+        "5388.TWO": "中磊",
+        "4906.TW": "正文",
+        "2313.TW": "華通",
+        "8039.TW": "台虹",
+        "6282.TW": "康舒",
+        "6005.TW": "群益證",
+        "6015.TW": "宏遠證",
+        "6024.TW": "群益期",
+        "6026.TWO": "福邦證",
+        "2855.TW": "統一證",
+        "2887.TW": "台新金",
+        "2888.TW": "新光金",
+        "6196.TW": "帆宣",
+        "2404.TW": "漢唐",
+        "6664.TW": "群翊",
+        "3402.TW": "漢科",
+        "2481.TW": "強茂",
+        "5425.TWO": "台半",
+        "8255.TWO": "朋程",
+        "3675.TWO": "德微",
+        "3016.TW": "嘉晶",
+        "2340.TW": "台亞",
+        "3707.TW": "漢磊",
+        "6288.TW": "聯嘉",
+        "6271.TW": "同欣電",
+        "1802.TW": "台玻",
+        "1815.TW": "富喬",
+        "2383.TW": "台光電",
+        "3037.TW": "欣興",
+        "8046.TW": "南電",
+        "3189.TW": "景碩",
+        "8358.TWO": "金居",
+        "8021.TWO": "尖點",
+        "2344.TW": "華邦電",
+        "8299.TWO": "群聯",
+        "3260.TWO": "威剛",
+        "2451.TW": "創見",
+        "8088.TWO": "品安",
+        "3006.TW": "晶豪科",
+        "4958.TW": "臻鼎-KY",
+        "2368.TW": "金像電",
+        "5469.TWO": "瀚宇博",
+        "3044.TW": "健鼎",
+        "3008.TW": "大立光",
+        "3406.TW": "玉晶光",
+        "3362.TWO": "先進光",
+        "3504.TW": "揚明光",
+        "6209.TW": "今國光",
+        "3019.TW": "亞光",
+        "3630.TW": "新鉅科",
+        "4976.TW": "佳凌",
+        "2328.TW": "廣宇",
+        "2392.TW": "正崴",
+        "3023.TW": "信邦",
+        "3665.TW": "貿聯-KY",
+        "6197.TW": "佳必琪",
+        "2367.TW": "燿華",
+        "6290.TWO": "良維",
+        "3605.TW": "宏致",
+        "3715.TW": "定穎投控",
+        "6672.TW": "騰輝電子-KY",
+        "6274.TW": "台燿",
+        "6213.TW": "聯茂",
+        "2393.TW": "億光"
+      },
+      recommendations: {
+        "半導體": ["2330.TW", "2454.TW", "3711.TW", "3034.TW", "3661.TW", "3443.TW", "3529.TW", "3653.TW", "5274.TW", "6415.TW"],
+        "晶圓代工": ["2330.TW", "2303.TW", "6770.TW", "5347.TWO", "3105.TWO", "2337.TW", "2408.TW", "6488.TWO", "3443.TW", "3034.TW"],
+        "封裝測試": ["3711.TW", "2449.TW", "6239.TW", "2329.TW", "3264.TWO", "6147.TWO", "8150.TW", "6510.TW", "6223.TWO", "3374.TW"],
+        "CoWoS設備": ["6187.TW", "3131.TWO", "3583.TW", "3167.TW", "3455.TW", "6438.TW", "2467.TW", "6640.TW", "5443.TWO", "6207.TW"],
+        "ASIC設計": ["3661.TW", "3443.TW", "3034.TW", "5274.TW", "3529.TW", "6415.TW", "2454.TW", "2379.TW", "3227.TWO", "4966.TW"],
+        "伺服器/BMC": ["2382.TW", "6669.TW", "3231.TW", "2357.TW", "2324.TW", "2376.TW", "2377.TW", "2395.TW", "5274.TW", "3324.TWO"],
+        "CPO光通訊": ["3081.TWO", "3363.TWO", "3450.TW", "4908.TWO", "4979.TWO", "3234.TWO", "4977.TWO", "6442.TW", "3163.TWO", "6546.TW"],
+        "太空運算": ["6414.TW", "8050.TWO", "3022.TW", "3706.TW", "2395.TW", "2357.TW", "6579.TW", "8114.TW", "8234.TW", "2495.TW"],
+        "AI": ["2330.TW", "2454.TW", "2382.TW", "6669.TW", "3231.TW", "3661.TW", "3443.TW", "5274.TW", "3529.TW", "3017.TW"],
+        "IC封測": ["3711.TW", "2449.TW", "6239.TW", "2329.TW", "3264.TWO", "6147.TWO", "8150.TW", "6510.TW", "6223.TWO", "3374.TW"],
+        "低軌衛星": ["3491.TWO", "3596.TW", "6285.TW", "5388.TWO", "4906.TW", "2313.TW", "8039.TW", "6282.TW", "2317.TW", "2324.TW"],
+        "證券": ["6005.TW", "6015.TW", "6024.TW", "6026.TWO", "2855.TW", "2885.TW", "2891.TW", "2887.TW", "2888.TW", "2881.TW"],
+        "面板設備": ["3455.TW", "2467.TW", "5443.TWO", "6196.TW", "2404.TW", "3167.TW", "6187.TW", "6664.TW", "3402.TW", "3583.TW"],
+        "車用二極體": ["2481.TW", "5425.TWO", "8255.TWO", "3675.TWO", "3016.TW", "2340.TW", "3707.TW", "6288.TW", "6271.TW", "2329.TW"],
+        "玻璃基板": ["1802.TW", "1815.TW", "2383.TW", "3037.TW", "8046.TW", "3189.TW", "8358.TWO", "8021.TWO", "6274.TW", "6213.TW"],
+        "記憶體": ["2408.TW", "2344.TW", "2337.TW", "8299.TWO", "3260.TWO", "2451.TW", "8088.TWO", "3006.TW", "6239.TW", "6271.TW"],
+        "ABF載板": ["3037.TW", "8046.TW", "3189.TW", "4958.TW", "6274.TW", "6213.TW", "2383.TW", "2368.TW", "2313.TW", "8358.TWO"],
+        "PCB": ["2313.TW", "3037.TW", "8046.TW", "4958.TW", "2368.TW", "2383.TW", "6274.TW", "6213.TW", "5469.TWO", "3044.TW"],
+        "光學鏡頭": ["3008.TW", "3406.TW", "3362.TWO", "3504.TW", "6209.TW", "3019.TW", "3630.TW", "4976.TW", "2393.TW", "2357.TW"],
+        "連接線": ["2317.TW", "2328.TW", "2392.TW", "3023.TW", "3665.TW", "6197.TW", "2367.TW", "6290.TWO", "3605.TW", "3715.TW"],
+        "CCL": ["2383.TW", "6274.TW", "6213.TW", "8046.TW", "3037.TW", "8358.TWO", "2368.TW", "5469.TWO", "6672.TW", "8039.TW"],
+        "AI伺服器": ["2382.TW", "6669.TW", "3231.TW", "2357.TW", "2345.TW", "2324.TW", "2376.TW", "2377.TW", "2395.TW", "3017.TW"],
+        "金融": ["2881.TW", "5871.TW", "2891.TW", "2882.TW", "2886.TW", "2801.TW", "2809.TW", "2880.TW", "2884.TW", "2885.TW"],
+        "電信": ["2412.TW", "3045.TW", "4904.TW", "2308.TW", "2357.TW", "2382.TW", "2395.TW", "2324.TW", "2376.TW", "2377.TW"],
+        "傳產": ["6505.TW", "1303.TW", "2002.TW", "1216.TW", "1101.TW", "1402.TW", "2912.TW", "2207.TW", "2603.TW", "2615.TW"],
+        "航運": ["2603.TW", "2609.TW", "2615.TW", "2618.TW", "2606.TW", "2610.TW", "2637.TW", "2646.TW", "2207.TW", "2002.TW"]
+      },
+      recommendationStats: {},
+      recommendationToken: 0,
+      active: "2330.TW",
+      series: [],
+      entryPrice: null,
+      indicator: "volume",
+      chartMode: "candle",
+      zoom: 1,
+      hoverIndex: null
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const STORAGE_KEY = "tw-stock-watch-settings-v1";
+
+    function setFieldValue(id, value) {
+      const el = $(id);
+      if (el && value !== undefined && value !== null) el.value = value;
+    }
+
+    function collectSettings() {
+      return {
+        symbols: state.symbols,
+        active: state.active,
+        timeframe: $("timeframe").value,
+        range: $("range").value,
+        industry: $("industrySelect").value,
+        buyMode: $("buyMode").value,
+        rsiTrigger: $("rsiTrigger").value,
+        stopLoss: $("stopLoss").value,
+        takeProfit: $("takeProfit").value,
+        positionAddPrice: $("positionAddPrice").value,
+        positionPullbackPct: $("positionPullbackPct").value,
+        positionStopPct: $("positionStopPct").value,
+        positionTakePct: $("positionTakePct").value,
+        longStopPct: $("longStopPct").value,
+        longTakePct: $("longTakePct").value,
+        shortStopPct: $("shortStopPct").value,
+        shortTakePct: $("shortTakePct").value,
+        ma: Array.from(document.querySelectorAll(".ma-check:checked")).map(input => input.value),
+        chartMode: state.chartMode,
+        indicator: state.indicator,
+        zoom: state.zoom,
+        lots: Array.from(document.querySelectorAll(".entry-lot")).map(row => ({
+          date: row.querySelector(".lot-date").value,
+          price: row.querySelector(".lot-price").value,
+          shares: row.querySelector(".lot-shares").value
+        }))
+      };
+    }
+
+    function saveSettings() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(collectSettings()));
+      } catch (err) {}
+    }
+
+    function restoreSettings() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+        if (Array.isArray(saved.symbols) && saved.symbols.length) state.symbols = saved.symbols;
+        if (saved.active) {
+          state.active = saved.active;
+          if (!state.symbols.includes(saved.active)) state.symbols.unshift(saved.active);
+        }
+        setFieldValue("timeframe", saved.timeframe);
+        setFieldValue("range", saved.range);
+        setFieldValue("buyMode", saved.buyMode);
+        setFieldValue("rsiTrigger", saved.rsiTrigger);
+        setFieldValue("stopLoss", saved.stopLoss);
+        setFieldValue("takeProfit", saved.takeProfit);
+        setFieldValue("positionAddPrice", saved.positionAddPrice);
+        setFieldValue("positionPullbackPct", saved.positionPullbackPct);
+        setFieldValue("positionStopPct", saved.positionStopPct);
+        setFieldValue("positionTakePct", saved.positionTakePct);
+        setFieldValue("longStopPct", saved.longStopPct);
+        setFieldValue("longTakePct", saved.longTakePct);
+        setFieldValue("shortStopPct", saved.shortStopPct);
+        setFieldValue("shortTakePct", saved.shortTakePct);
+        if (Array.isArray(saved.ma)) {
+          document.querySelectorAll(".ma-check").forEach(input => input.checked = saved.ma.includes(input.value));
+        }
+        if (saved.chartMode) state.chartMode = saved.chartMode;
+        if (saved.indicator) state.indicator = saved.indicator;
+        if (Number.isFinite(saved.zoom)) state.zoom = saved.zoom;
+        if (Array.isArray(saved.lots)) {
+          document.querySelectorAll(".entry-lot").forEach((row, index) => {
+            const lot = saved.lots[index] || {};
+            row.querySelector(".lot-date").value = lot.date || "";
+            row.querySelector(".lot-price").value = lot.price || "";
+            row.querySelector(".lot-shares").value = lot.shares || "";
+          });
+        }
+        document.querySelectorAll(".chart-mode-btn").forEach(button => {
+          button.classList.toggle("active", button.dataset.chartMode === state.chartMode);
+        });
+        document.querySelectorAll(".indicator-tab").forEach(button => {
+          button.classList.toggle("active", button.dataset.indicator === state.indicator);
+        });
+        return saved;
+      } catch (err) {
+        return {};
+      }
+    }
+
+    function displayName(symbol) {
+      return state.names[symbol] ? `${symbol} ${state.names[symbol]}` : symbol;
+    }
+
+    function normalizeSymbol(input) {
+      const raw = input.trim().toUpperCase();
+      if (!raw) return "";
+      if (raw.includes(".")) return raw;
+      return `${raw}.TW`;
+    }
+
+    function marketClock() {
+      const now = new Date();
+      const tw = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Taipei" }));
+      const day = tw.getDay();
+      const minutes = tw.getHours() * 60 + tw.getMinutes();
+      const open = day >= 1 && day <= 5 && minutes >= 9 * 60 && minutes <= 13 * 60 + 30;
+      $("marketStatus").textContent = open ? "台股盤中 09:00-13:30" : "非盤中時段，顯示最近可取得資料";
+    }
+
+    function renderWatchlist() {
+      $("watchlist").innerHTML = "";
+      state.symbols.forEach(symbol => {
+        const btn = document.createElement("button");
+        btn.className = `stock ${symbol === state.active ? "active" : ""}`;
+        btn.innerHTML = `<span><span class="symbol">${symbol}</span><br><span class="sub">${state.names[symbol] || "點選切換"}</span></span>`;
+        btn.onclick = () => {
+          state.active = symbol;
+          state.entryPrice = null;
+          saveSettings();
+          renderWatchlist();
+          loadSymbol();
+        };
+        $("watchlist").appendChild(btn);
+      });
+    }
+
+    async function renderRecommendations(updateStats = true) {
+      const industrySelect = $("industrySelect");
+      if (!industrySelect.options.length) {
+        Object.keys(state.recommendations).forEach(industry => {
+          const option = document.createElement("option");
+          option.value = industry;
+          option.textContent = industry;
+          industrySelect.appendChild(option);
+        });
+      }
+      const industry = industrySelect.value || Object.keys(state.recommendations)[0];
+      const symbols = state.recommendations[industry] || [];
+      const token = updateStats ? ++state.recommendationToken : state.recommendationToken;
+      $("recommendList").innerHTML = "";
+      symbols.forEach(symbol => {
+        const button = document.createElement("button");
+        button.className = `recommend-stock ${symbol === state.active ? "active" : ""}`;
+        const stat = state.recommendationStats[symbol];
+        const hasPct = stat && Number.isFinite(stat.pct);
+        const pctClass = hasPct ? (stat.pct > 0 ? "text-up" : stat.pct < 0 ? "text-down" : "text-flat") : "text-flat";
+        const pctText = hasPct ? `${stat.pct >= 0 ? "+" : ""}${stat.pct.toFixed(2)}%` : (stat ? "--" : "讀取中");
+        button.innerHTML = `<span>${symbol.replace(/\.(TW|TWO)$/, "")} ${state.names[symbol] || ""}</span><span class="rec-pct ${pctClass}">${pctText}</span>`;
+        button.title = "加入自選並切換";
+        button.onclick = () => {
+          if (!state.symbols.includes(symbol)) state.symbols.unshift(symbol);
+          state.active = symbol;
+          state.entryPrice = null;
+          saveSettings();
+          renderWatchlist();
+          renderRecommendations();
+          loadSymbol();
+        };
+        $("recommendList").appendChild(button);
+      });
+
+      if (!updateStats) return;
+      let changed = false;
+      await Promise.allSettled(symbols.map(async symbol => {
+        if (state.recommendationStats[symbol]?.interval === $("timeframe").value) return;
+        try {
+          const rows = await fetchYahoo(symbol, $("timeframe").value);
+          const last = rows.at(-1);
+          const prev = rows.at(-2) || last;
+          const pct = prev?.close ? ((last.close - prev.close) / prev.close) * 100 : 0;
+          state.recommendationStats[symbol] = { pct, interval: $("timeframe").value };
+        } catch {
+          state.recommendationStats[symbol] = { pct: null, interval: $("timeframe").value };
+        }
+        changed = true;
+      }));
+      if (changed && token === state.recommendationToken) renderRecommendations(false);
+    }
+
+    function sma(values, period) {
+      return values.map((_, i) => {
+        if (i < period - 1) return null;
+        const slice = values.slice(i - period + 1, i + 1);
+        return slice.reduce((a, b) => a + b, 0) / period;
+      });
+    }
+
+    function rsi(values, period = 14) {
+      const out = Array(values.length).fill(null);
+      for (let i = period; i < values.length; i++) {
+        let gains = 0;
+        let losses = 0;
+        for (let j = i - period + 1; j <= i; j++) {
+          const diff = values[j] - values[j - 1];
+          if (diff >= 0) gains += diff;
+          else losses -= diff;
+        }
+        const rs = losses === 0 ? 100 : gains / losses;
+        out[i] = 100 - (100 / (1 + rs));
+      }
+      return out;
+    }
+
+    function ema(values, period) {
+      const out = Array(values.length).fill(null);
+      const multiplier = 2 / (period + 1);
+      let prev = null;
+      values.forEach((value, i) => {
+        if (!Number.isFinite(value)) return;
+        prev = prev === null ? value : (value - prev) * multiplier + prev;
+        out[i] = prev;
+      });
+      return out;
+    }
+
+    function kd(rows, period = 9) {
+      const k = Array(rows.length).fill(null);
+      const d = Array(rows.length).fill(null);
+      let prevK = 50;
+      let prevD = 50;
+      rows.forEach((row, i) => {
+        if (i < period - 1) return;
+        const slice = rows.slice(i - period + 1, i + 1);
+        const high = Math.max(...slice.map(r => r.high));
+        const low = Math.min(...slice.map(r => r.low));
+        const rsv = high === low ? 50 : ((row.close - low) / (high - low)) * 100;
+        prevK = prevK * 2 / 3 + rsv / 3;
+        prevD = prevD * 2 / 3 + prevK / 3;
+        k[i] = prevK;
+        d[i] = prevD;
+      });
+      return { k, d };
+    }
+
+    function macd(values) {
+      const ema12 = ema(values, 12);
+      const ema26 = ema(values, 26);
+      const dif = values.map((_, i) => ema12[i] !== null && ema26[i] !== null ? ema12[i] - ema26[i] : null);
+      const signal = ema(dif.map(v => v ?? 0), 9).map((v, i) => dif[i] === null ? null : v);
+      const hist = dif.map((v, i) => v !== null && signal[i] !== null ? v - signal[i] : null);
+      return { dif, signal, hist };
+    }
+
+    function rangeForInterval(interval) {
+      if (interval === "5m") return "5d";
+      if (interval === "15m" || interval === "30m") return "1mo";
+      if (interval === "60m") return "3mo";
+      return $("range").value;
+    }
+
+    function timeframeLabel(interval) {
+      return {
+        "1wk": "週 K",
+        "1d": "日 K",
+        "60m": "60 分 K",
+        "30m": "30 分 K",
+        "15m": "15 分 K",
+        "5m": "5 分 K"
+      }[interval] || interval;
+    }
+
+    async function fetchYahoo(symbol, interval) {
+      const range = rangeForInterval(interval);
+      return fetchChartRows(symbol, range, interval);
+    }
+
+    async function fetchChartRows(symbol, range, interval) {
+      const localApi = location.protocol.startsWith("http") ? `/api/chart?symbol=${encodeURIComponent(symbol)}&range=${range}&interval=${interval}` : "";
+      const directApi = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=${interval}`;
+      const url = localApi || directApi;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("無法取得股價資料");
+      const json = await res.json();
+      const result = json.chart?.result?.[0];
+      if (!result) throw new Error("資料格式不符");
+      if (json.stockName) state.names[symbol] = json.stockName;
+      const quote = result.indicators.quote[0];
+      return result.timestamp.map((ts, i) => ({
+        date: new Date(ts * 1000),
+        open: quote.open[i],
+        high: quote.high[i],
+        low: quote.low[i],
+        close: quote.close[i],
+        volume: quote.volume[i]
+      })).filter(row => Number.isFinite(row.close));
+    }
+
+    function sampleData() {
+      const rows = [];
+      let price = 650;
+      for (let i = 150; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const drift = Math.sin(i / 8) * 4 + (Math.random() - 0.46) * 10;
+        const open = price;
+        price = Math.max(30, price + drift);
+        rows.push({
+          date,
+          open,
+          high: Math.max(open, price) + Math.random() * 8,
+          low: Math.min(open, price) - Math.random() * 8,
+          close: price,
+          volume: 20000000 + Math.random() * 50000000
+        });
+      }
+      return rows;
+    }
+
+    function drawChart(rows) {
+      const canvas = $("chart");
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(rect.width * dpr);
+      canvas.height = Math.floor(rect.height * dpr);
+      const ctx = canvas.getContext("2d");
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, rect.width, rect.height);
+
+      if (!rows.length) return;
+      const pad = { left: 48, right: 92, top: 16, bottom: 42 };
+      const w = rect.width - pad.left - pad.right;
+      const h = rect.height - pad.top - pad.bottom;
+      const visibleCount = Math.max(20, Math.ceil(rows.length / state.zoom));
+      const start = Math.max(0, rows.length - visibleCount);
+      const visibleRows = rows.slice(start);
+      const closes = visibleRows.map(r => r.close);
+      const maConfigs = [
+        { period: 5, label: "MA5", color: "#6f42c1" },
+        { period: 10, label: "MA10", color: "#008c95" },
+        { period: 20, label: "MA20", color: "#2864d8" },
+        { period: 60, label: "MA60", color: "#ad6b00" }
+      ];
+      const selectedPeriods = new Set(Array.from(document.querySelectorAll(".ma-check:checked")).map(input => Number(input.value)));
+      const selectedMas = maConfigs
+        .filter(config => selectedPeriods.has(config.period))
+        .map(config => ({ ...config, values: sma(rows.map(r => r.close), config.period).slice(start) }));
+      const maValues = selectedMas.flatMap(config => config.values.filter(Boolean));
+      const max = Math.max(...visibleRows.map(r => r.high), ...maValues);
+      const min = Math.min(...visibleRows.map(r => r.low), ...maValues);
+      const y = v => pad.top + (max - v) / (max - min || 1) * h;
+      const x = i => pad.left + i / Math.max(1, visibleRows.length - 1) * w;
+
+      ctx.strokeStyle = "#e6eaf1";
+      ctx.lineWidth = 1;
+      ctx.font = "12px Segoe UI";
+      ctx.fillStyle = "#667085";
+      for (let i = 0; i <= 4; i++) {
+        const yy = pad.top + h * i / 4;
+        const value = max - (max - min) * i / 4;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, yy);
+        ctx.lineTo(pad.left + w, yy);
+        ctx.stroke();
+        ctx.fillText(value.toFixed(1), 6, yy + 4);
+      }
+
+      visibleRows.forEach((r, i) => {
+        if (state.chartMode !== "candle") return;
+        const xx = x(i);
+        const up = r.close >= r.open;
+        ctx.strokeStyle = up ? "#c7372f" : "#0c8f57";
+        ctx.fillStyle = ctx.strokeStyle;
+        ctx.beginPath();
+        ctx.moveTo(xx, y(r.high));
+        ctx.lineTo(xx, y(r.low));
+        ctx.stroke();
+        const top = y(Math.max(r.open, r.close));
+        const bottom = y(Math.min(r.open, r.close));
+        const cw = Math.max(2, w / visibleRows.length * 0.58);
+        ctx.fillRect(xx - cw / 2, top, cw, Math.max(1, bottom - top));
+      });
+
+      function line(points, color) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        let started = false;
+        points.forEach((v, i) => {
+          if (!v) return;
+          if (!started) { ctx.moveTo(x(i), y(v)); started = true; }
+          else ctx.lineTo(x(i), y(v));
+        });
+        ctx.stroke();
+      }
+      if (state.chartMode === "line") {
+        ctx.strokeStyle = "#c7372f";
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        closes.forEach((close, i) => {
+          if (i === 0) ctx.moveTo(x(i), y(close));
+          else ctx.lineTo(x(i), y(close));
+        });
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(199, 55, 47, .08)";
+        ctx.lineTo(x(visibleRows.length - 1), pad.top + h);
+        ctx.lineTo(x(0), pad.top + h);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = "#c7372f";
+        ctx.fillText("走勢", pad.left + 8, pad.top + 16);
+      }
+      let legendX = pad.left + 8;
+      if (state.chartMode === "line") {
+        legendX += 44;
+      }
+      selectedMas.forEach(config => {
+        line(config.values, config.color);
+        ctx.fillStyle = config.color;
+        ctx.fillText(config.label, legendX, pad.top + 16);
+        legendX += ctx.measureText(config.label).width + 16;
+      });
+
+      if (state.hoverIndex !== null) {
+        const visibleIndex = state.hoverIndex - start;
+        const row = rows[state.hoverIndex];
+        if (row && visibleIndex >= 0 && visibleIndex < visibleRows.length) {
+          const xx = x(visibleIndex);
+          const yy = y(row.close);
+          ctx.save();
+          ctx.strokeStyle = "rgba(28, 36, 48, .55)";
+          ctx.lineWidth = 1;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(xx, pad.top);
+          ctx.lineTo(xx, pad.top + h);
+          ctx.moveTo(pad.left, yy);
+          ctx.lineTo(pad.left + w, yy);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = "#1c2430";
+          ctx.beginPath();
+          ctx.arc(xx, yy, 3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+    }
+
+    function drawIndicator(rows) {
+      const canvas = $("indicatorChart");
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(rect.width * dpr);
+      canvas.height = Math.floor(rect.height * dpr);
+      const ctx = canvas.getContext("2d");
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      if (!rows.length) return;
+
+      const { start, visibleRows } = visibleWindow();
+      const pad = { left: 48, right: 92, top: 14, bottom: 22 };
+      const w = rect.width - pad.left - pad.right;
+      const h = rect.height - pad.top - pad.bottom;
+      const x = i => pad.left + i / Math.max(1, visibleRows.length - 1) * w;
+
+      function grid(min, max, formatter = v => v.toFixed(1)) {
+        ctx.strokeStyle = "#e6eaf1";
+        ctx.lineWidth = 1;
+        ctx.font = "12px Segoe UI";
+        ctx.fillStyle = "#667085";
+        for (let i = 0; i <= 2; i++) {
+          const yy = pad.top + h * i / 2;
+          const value = max - (max - min) * i / 2;
+          ctx.beginPath();
+          ctx.moveTo(pad.left, yy);
+          ctx.lineTo(pad.left + w, yy);
+          ctx.stroke();
+          ctx.fillText(formatter(value), 6, yy + 4);
+        }
+      }
+
+      function gridTicks(min, max, ticks, formatter = v => v.toFixed(0)) {
+        ctx.strokeStyle = "#e6eaf1";
+        ctx.lineWidth = 1;
+        ctx.font = "12px Segoe UI";
+        ctx.fillStyle = "#667085";
+        ticks.forEach(value => {
+          const yy = pad.top + (max - value) / (max - min || 1) * h;
+          ctx.beginPath();
+          ctx.moveTo(pad.left, yy);
+          ctx.lineTo(pad.left + w, yy);
+          ctx.stroke();
+          ctx.fillText(formatter(value), 12, yy + 4);
+        });
+      }
+
+      function line(values, color, min, max) {
+        const y = v => pad.top + (max - v) / (max - min || 1) * h;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        let started = false;
+        values.forEach((v, i) => {
+          if (v === null || !Number.isFinite(v)) return;
+          if (!started) { ctx.moveTo(x(i), y(v)); started = true; }
+          else ctx.lineTo(x(i), y(v));
+        });
+        ctx.stroke();
+      }
+
+      function drawIndicatorCrosshair(min, max, value) {
+        if (state.hoverIndex === null) return;
+        const visibleIndex = state.hoverIndex - start;
+        if (visibleIndex < 0 || visibleIndex >= visibleRows.length) return;
+        const xx = x(visibleIndex);
+        const y = v => pad.top + (max - v) / (max - min || 1) * h;
+        const yy = value === null || !Number.isFinite(value) ? pad.top + h / 2 : y(value);
+        ctx.save();
+        ctx.strokeStyle = "rgba(28, 36, 48, .55)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(xx, pad.top);
+        ctx.lineTo(xx, pad.top + h);
+        ctx.moveTo(pad.left, yy);
+        ctx.lineTo(pad.left + w, yy);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = "#1c2430";
+        ctx.beginPath();
+        ctx.arc(xx, yy, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      if (state.indicator === "volume") {
+        const volumes = visibleRows.map(r => r.volume || 0);
+        const max = Math.max(...volumes, 1);
+        grid(0, max, v => `${Math.round(v / 1000)}K`);
+        const y = v => pad.top + (max - v) / max * h;
+        visibleRows.forEach((r, i) => {
+          const xx = x(i);
+          const up = r.close >= r.open;
+          ctx.fillStyle = up ? "rgba(199, 55, 47, .78)" : "rgba(12, 143, 87, .78)";
+          const bw = Math.max(2, w / visibleRows.length * 0.6);
+          ctx.fillRect(xx - bw / 2, y(r.volume || 0), bw, pad.top + h - y(r.volume || 0));
+        });
+        const last = rows.at(-1);
+        $("indicatorReadout").textContent = `成交量 ${(last.volume || 0).toLocaleString("zh-TW")}`;
+        drawIndicatorCrosshair(0, max, rows[state.hoverIndex]?.volume || null);
+        return;
+      }
+
+      if (state.indicator === "kd") {
+        const fullData = kd(rows);
+        const data = { k: fullData.k.slice(start), d: fullData.d.slice(start) };
+        gridTicks(0, 100, [100, 80, 50, 20, 0]);
+        line(data.k, "#2864d8", 0, 100);
+        line(data.d, "#ad6b00", 0, 100);
+        ctx.fillStyle = "#2864d8";
+        ctx.fillText("K", pad.left + 8, pad.top + 14);
+        ctx.fillStyle = "#ad6b00";
+        ctx.fillText("D", pad.left + 28, pad.top + 14);
+        const lastK = data.k.at(-1);
+        const lastD = data.d.at(-1);
+        $("indicatorReadout").textContent = `KD K ${lastK ? lastK.toFixed(1) : "--"} / D ${lastD ? lastD.toFixed(1) : "--"}`;
+        drawIndicatorCrosshair(0, 100, fullData.k[state.hoverIndex]);
+        return;
+      }
+
+      const closes = rows.map(r => r.close);
+      const fullData = macd(closes);
+      const data = {
+        dif: fullData.dif.slice(start),
+        signal: fullData.signal.slice(start),
+        hist: fullData.hist.slice(start)
+      };
+      const values = [...data.dif, ...data.signal, ...data.hist].filter(v => v !== null && Number.isFinite(v));
+      const maxAbs = Math.max(...values.map(Math.abs), 1);
+      const min = -maxAbs;
+      const max = maxAbs;
+      grid(min, max);
+      const y = v => pad.top + (max - v) / (max - min || 1) * h;
+      ctx.strokeStyle = "#98a2b3";
+      ctx.beginPath();
+      ctx.moveTo(pad.left, y(0));
+      ctx.lineTo(pad.left + w, y(0));
+      ctx.stroke();
+      data.hist.forEach((v, i) => {
+        if (v === null) return;
+        const xx = x(i);
+        const bw = Math.max(2, w / rows.length * 0.62);
+        ctx.fillStyle = v >= 0 ? "rgba(199, 55, 47, .72)" : "rgba(12, 143, 87, .72)";
+        ctx.fillRect(xx - bw / 2, Math.min(y(0), y(v)), bw, Math.abs(y(v) - y(0)));
+      });
+      line(data.dif, "#2864d8", min, max);
+      line(data.signal, "#ad6b00", min, max);
+      ctx.fillStyle = "#2864d8";
+      ctx.fillText("DIF", pad.left + 8, pad.top + 14);
+      ctx.fillStyle = "#ad6b00";
+      ctx.fillText("MACD", pad.left + 42, pad.top + 14);
+      $("indicatorReadout").textContent = `MACD DIF ${data.dif.at(-1)?.toFixed(2) ?? "--"} / Signal ${data.signal.at(-1)?.toFixed(2) ?? "--"}`;
+      drawIndicatorCrosshair(min, max, fullData.dif[state.hoverIndex]);
+    }
+
+    function drawAll(rows) {
+      drawChart(rows);
+      drawIndicator(rows);
+    }
+
+    function visibleWindow() {
+      const rows = state.series;
+      const visibleCount = Math.max(20, Math.ceil(rows.length / state.zoom));
+      const start = Math.max(0, rows.length - visibleCount);
+      return { start, visibleRows: rows.slice(start) };
+    }
+
+    function updateCrosshair(event) {
+      const canvas = event.currentTarget;
+      const rect = canvas.getBoundingClientRect();
+      if (!state.series.length) return;
+      const pad = canvas.id === "indicatorChart"
+        ? { left: 48, right: 92, top: 14, bottom: 22 }
+        : { left: 48, right: 92, top: 16, bottom: 42 };
+      const w = rect.width - pad.left - pad.right;
+      const h = rect.height - pad.top - pad.bottom;
+      const localX = event.clientX - rect.left;
+      const localY = event.clientY - rect.top;
+      if (localX < pad.left || localX > pad.left + w || localY < pad.top || localY > pad.top + h) {
+        state.hoverIndex = null;
+        $("crosshairInfo").style.display = "none";
+        drawAll(state.series);
+        return;
+      }
+      const { start, visibleRows } = visibleWindow();
+      const visibleIndex = Math.round((localX - pad.left) / Math.max(1, w) * Math.max(1, visibleRows.length - 1));
+      const index = Math.min(state.series.length - 1, Math.max(start, start + visibleIndex));
+      state.hoverIndex = index;
+      const row = state.series[index];
+      const prevRow = state.series[index - 1] || row;
+      const changePct = prevRow.close ? ((row.close - prevRow.close) / prevRow.close) * 100 : 0;
+      const dateText = $("timeframe").value === "1d" || $("timeframe").value === "1wk"
+        ? row.date.toLocaleDateString("zh-TW")
+        : row.date.toLocaleString("zh-TW", { hour12: false });
+      const moveClass = changePct > 0 ? "text-up" : changePct < 0 ? "text-down" : "text-flat";
+      $("crosshairInfo").innerHTML = `<span class="date">${dateText}</span>　<span class="${moveClass}">開 ${row.open?.toFixed(2) ?? "--"}　高 ${row.high?.toFixed(2) ?? "--"}　低 ${row.low?.toFixed(2) ?? "--"}　收 ${row.close?.toFixed(2) ?? "--"}　漲跌 ${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}%</span>　<span class="date">量 ${(row.volume || 0).toLocaleString("zh-TW")}</span>`;
+      $("crosshairInfo").style.display = "flex";
+      drawAll(state.series);
+    }
+
+    function clearCrosshair() {
+      state.hoverIndex = null;
+      $("crosshairInfo").style.display = "none";
+      drawAll(state.series);
+    }
+
+    function setZoom(nextZoom) {
+      state.zoom = Math.min(6, Math.max(1, nextZoom));
+      state.hoverIndex = null;
+      $("crosshairInfo").style.display = "none";
+      drawAll(state.series);
+    }
+
+    function updatePositionPanel(sourceId = "") {
+      if (sourceId === "stopLoss") $("positionStopPct").value = $("stopLoss").value;
+      if (sourceId === "takeProfit") $("positionTakePct").value = $("takeProfit").value;
+      if (sourceId === "positionStopPct") $("stopLoss").value = $("positionStopPct").value;
+      if (sourceId === "positionTakePct") $("takeProfit").value = $("positionTakePct").value;
+
+      const lots = Array.from(document.querySelectorAll(".entry-lot")).map(row => {
+        const price = Number(row.querySelector(".lot-price").value);
+        const shares = Number(row.querySelector(".lot-shares").value);
+        return { price, shares };
+      }).filter(lot => lot.price > 0 && lot.shares > 0);
+      const totalShares = lots.reduce((sum, lot) => sum + lot.shares, 0);
+      const totalCost = lots.reduce((sum, lot) => sum + lot.price * lot.shares, 0);
+      const addPriceInput = Number($("positionAddPrice").value);
+      const pullbackPct = Number($("positionPullbackPct").value || 10);
+      const stopPct = Number($("positionStopPct").value);
+      const takePct = Number($("positionTakePct").value);
+      const avg = totalShares > 0 ? totalCost / totalShares : 0;
+      const addPrice = addPriceInput > 0 ? addPriceInput : (avg > 0 ? avg * (1 - pullbackPct / 100) : 0);
+      const amount = totalCost;
+      const stopPrice = avg > 0 ? avg * (1 - stopPct / 100) : 0;
+      const takePrice = avg > 0 ? avg * (1 + takePct / 100) : 0;
+
+      $("positionAvg").value = avg > 0 ? avg.toFixed(2) : "";
+      if (!$("positionAddPrice").value && addPrice > 0) $("positionAddPrice").placeholder = addPrice.toFixed(2);
+      $("positionSummary").textContent = avg > 0
+        ? `總股數 ${totalShares.toLocaleString("zh-TW")}｜投入成本 ${amount.toLocaleString("zh-TW", { maximumFractionDigits: 0 })} 元｜回檔 ${pullbackPct}% 加碼參考 ${addPrice.toFixed(2)}｜止損價 ${stopPrice.toFixed(2)}｜停利價 ${takePrice.toFixed(2)}`
+        : "輸入最多 5 筆日期、股票進價與股數後，會自動估算成本均價、止損價與停利價。";
+    }
+
+    function setSignal(id, active, activeText) {
+      const el = $(id);
+      el.classList.toggle("active", Boolean(active));
+      el.textContent = active ? activeText : el.dataset.base || el.textContent;
+    }
+
+    function latestSignalValues(rows) {
+      const closes = rows.map(r => r.close);
+      const volumes = rows.map(r => r.volume || 0);
+      const ma5 = sma(closes, 5);
+      const ma10 = sma(closes, 10);
+      const ma20 = sma(closes, 20);
+      const ma60 = sma(closes, 60);
+      const rsis = rsi(closes);
+      const kds = kd(rows);
+      const macds = macd(closes);
+      const i = rows.length - 1;
+      const prev = Math.max(0, i - 1);
+      const vol5 = sma(volumes, 5);
+      return {
+        last: rows[i],
+        prev: rows[prev],
+        i,
+        close: closes[i],
+        ma5: ma5[i],
+        ma10: ma10[i],
+        ma20: ma20[i],
+        ma60: ma60[i],
+        rsi: rsis[i],
+        prevRsi: rsis[prev],
+        k: kds.k[i],
+        d: kds.d[i],
+        prevK: kds.k[prev],
+        prevD: kds.d[prev],
+        dif: macds.dif[i],
+        signal: macds.signal[i],
+        hist: macds.hist[i],
+        prevHist: macds.hist[prev],
+        volume: volumes[i],
+        vol5: vol5[i]
+      };
+    }
+
+    function renderSignalModule(prefix, signal, note) {
+      setSignal(`${prefix}Buy`, signal.buy, "可買入");
+      setSignal(`${prefix}Add`, signal.add, "可加碼");
+      setSignal(`${prefix}Reduce`, signal.reduce, "可減碼");
+      setSignal(`${prefix}Exit`, signal.exit, "可退場");
+      $(`${prefix}SignalNote`).textContent = note;
+    }
+
+    function analyzeLongTerm(rows) {
+      if (rows.length < 20) return { signal: {}, note: "月線資料不足，暫不產生長線訊號。" };
+      const v = latestSignalValues(rows);
+      const trendUp = v.ma5 > v.ma10 && v.ma10 > v.ma20;
+      const trendDown = v.close < v.ma10 || v.ma5 < v.ma10;
+      const kdGolden = v.prevK <= v.prevD && v.k > v.d;
+      const kdWeak = v.k < v.d || v.k > 85;
+      const macdUp = v.hist > 0 && v.hist >= v.prevHist;
+      const macdDown = v.hist < 0 && v.hist < v.prevHist;
+      const buy = trendUp && v.rsi > 50 && macdUp;
+      const add = buy && v.close > v.ma5 && v.volume > (v.vol5 || 0);
+      const reduce = kdWeak || v.rsi > 75;
+      const exit = trendDown || macdDown || v.rsi < 45;
+      const stopPct = Number($("longStopPct").value || 12);
+      const takePct = Number($("longTakePct").value || 35);
+      const stopRef = v.close * (1 - stopPct / 100);
+      const takeRef = v.close * (1 + takePct / 100);
+      return {
+        signal: { buy, add, reduce, exit },
+        note: `月線：RSI ${v.rsi ? v.rsi.toFixed(1) : "--"}，K/D ${v.k ? v.k.toFixed(1) : "--"}/${v.d ? v.d.toFixed(1) : "--"}，停損 ${stopRef.toFixed(2)}，停利 ${takeRef.toFixed(2)}。`
+      };
+    }
+
+    function analyzeShortTerm(rows, dailyRows) {
+      if (rows.length < 20) return { signal: {}, note: "分時資料不足，暫不產生短線訊號。" };
+      const v = latestSignalValues(rows);
+      const d = dailyRows?.length >= 20 ? latestSignalValues(dailyRows) : null;
+      const dayTrendOk = !d || d.close >= d.ma5 || d.rsi > 50;
+      const intradayUp = v.ma5 > v.ma10 && v.close > v.ma20;
+      const kdGolden = v.prevK <= v.prevD && v.k > v.d;
+      const macdTurnUp = v.hist > 0 && v.prevHist <= v.hist;
+      const volumeOk = v.volume >= (v.vol5 || 0);
+      const buy = dayTrendOk && intradayUp && (kdGolden || macdTurnUp);
+      const add = buy && volumeOk && v.close > v.ma5;
+      const reduce = v.rsi > 72 || (v.k < v.d && v.k > 65);
+      const exit = v.close < v.ma10 || v.hist < 0 || v.rsi < 45;
+      const stopPct = Number($("shortStopPct").value || 2);
+      const takePct = Number($("shortTakePct").value || 5);
+      const stopRef = v.close * (1 - stopPct / 100);
+      const takeRef = v.close * (1 + takePct / 100);
+      return {
+        signal: { buy, add, reduce, exit },
+        note: `短線：RSI ${v.rsi ? v.rsi.toFixed(1) : "--"}，K/D ${v.k ? v.k.toFixed(1) : "--"}/${v.d ? v.d.toFixed(1) : "--"}，停損 ${stopRef.toFixed(2)}，停利 ${takeRef.toFixed(2)}。`
+      };
+    }
+
+    async function updateInvestmentSignals() {
+      renderSignalModule("long", {}, "長線訊號讀取中...");
+      renderSignalModule("short", {}, "短線訊號讀取中...");
+      try {
+        const [monthlyRows, dailyRows] = await Promise.all([
+          fetchChartRows(state.active, "5y", "1mo"),
+          fetchChartRows(state.active, "6mo", "1d")
+        ]);
+        const shortRows = ["5m", "15m", "30m", "60m"].includes($("timeframe").value)
+          ? state.series
+          : dailyRows;
+        const longResult = analyzeLongTerm(monthlyRows);
+        const shortResult = analyzeShortTerm(shortRows, dailyRows);
+        renderSignalModule("long", longResult.signal, longResult.note);
+        renderSignalModule("short", shortResult.signal, shortResult.note);
+      } catch (error) {
+        renderSignalModule("long", {}, "長線訊號暫時無法取得資料。");
+        renderSignalModule("short", {}, "短線訊號暫時無法取得資料。");
+      }
+    }
+
+    function zoomWithWheel(event) {
+      event.preventDefault();
+      const direction = event.deltaY < 0 ? 1.15 : 1 / 1.15;
+      setZoom(state.zoom * direction);
+    }
+
+    function evaluate(rows) {
+      const closes = rows.map(r => r.close);
+      const ema8 = ema(closes, 8);
+      const ema21 = ema(closes, 21);
+      const rsis = rsi(closes);
+      const last = rows.at(-1);
+      const i = rows.length - 1;
+      const lastRsi = rsis[i];
+      const stopLoss = Number($("stopLoss").value) / 100;
+      const takeProfit = Number($("takeProfit").value) / 100;
+      const fmt = value => Number.isFinite(value) ? value.toFixed(2) : "--";
+      const currentEma8 = ema8[i];
+      const currentEma21 = ema21[i];
+      const prevEma8 = ema8[i - 1];
+      const prevEma21 = ema21[i - 1];
+      const range = Math.max(0.01, last.high - last.low);
+      const candleBody = last.close - last.open;
+      const longRed = candleBody > 0 && candleBody >= range * 0.45;
+      const bearBody = last.close < last.open;
+      const emaGolden = $("buyMode").value === "emaSpeed" && prevEma8 !== null && prevEma21 !== null && currentEma8 !== null && currentEma21 !== null && prevEma8 <= prevEma21 && currentEma8 > currentEma21;
+      const buySignal = emaGolden && longRed;
+      const ema21Lost = currentEma21 !== null && last.close < currentEma21;
+      const ema8Profit = currentEma8 !== null && bearBody && last.close < currentEma8;
+      const timeframeHint = $("timeframe").value === "5m" ? "" : "（建議切到 5 分 K 使用）";
+
+      if (buySignal) {
+        state.entryPrice = state.entryPrice || last.close;
+      }
+      const entry = state.entryPrice || last.close;
+      const stopPrice = entry * (1 - stopLoss);
+      const targetPrice = entry * (1 + takeProfit);
+
+      const riskSignal = ema21Lost || last.close <= stopPrice;
+      const profitSignal = ema8Profit || last.close >= targetPrice;
+      $("buyAlert").innerHTML = `<strong class="${buySignal ? "triggered" : ""}">速度流進場</strong><span class="small">${buySignal ? "金叉+長紅K，可買入觀察。" : `等 EMA8 金叉 EMA21 + 長紅K ${timeframeHint}`} EMA8 ${fmt(currentEma8)} / EMA21 ${fmt(currentEma21)}</span>`;
+      $("riskAlert").innerHTML = `<strong class="${riskSignal ? "triggered" : ""}">抱單退場</strong><span class="small">${riskSignal ? "跌破 EMA21 或止損線，檢查退場。" : "未跌破 EMA21，可續抱。"} EMA21 ${fmt(currentEma21)} / 止損 ${stopPrice.toFixed(2)}</span>`;
+      $("profitAlert").innerHTML = `<strong class="${profitSignal ? "triggered" : ""}">EMA8 停利</strong><span class="small">${profitSignal ? "陰K破 EMA8 或達標，停利觀察。" : "尚未跌破 EMA8。"} EMA8 ${fmt(currentEma8)} / 停利 ${targetPrice.toFixed(2)}</span>`;
+      updatePositionPanel();
+    }
+
+    function updateQuote(rows, source) {
+      const last = rows.at(-1);
+      const prev = rows.at(-2) || last;
+      const diff = last.close - prev.close;
+      const pct = diff / prev.close * 100;
+      const openGapPct = prev.close ? ((last.open - prev.close) / prev.close) * 100 : 0;
+      $("activeName").textContent = displayName(state.active);
+      $("price").textContent = last.close.toFixed(2);
+      $("delta").textContent = `${diff >= 0 ? "+" : ""}${diff.toFixed(2)} (${pct.toFixed(2)}%)`;
+      $("delta").className = `delta ${diff >= 0 ? "up" : "down"}`;
+      $("openGap").textContent = `開盤差幅 ${openGapPct >= 0 ? "+" : ""}${openGapPct.toFixed(2)}%`;
+      $("openGap").className = `open-gap ${openGapPct >= 0 ? "up" : "down"}`;
+      const interval = $("timeframe").value;
+      const dateText = interval === "1d" || interval === "1wk"
+        ? last.date.toLocaleDateString("zh-TW")
+        : last.date.toLocaleString("zh-TW", { hour12: false });
+      $("quoteMeta").textContent = `${source}｜${timeframeLabel(interval)}｜最後時間 ${dateText}｜資料僅供策略提醒與風險控管參考`;
+    }
+
+    async function loadSymbol() {
+      $("quoteMeta").textContent = "讀取資料中";
+      state.hoverIndex = null;
+      $("crosshairInfo").style.display = "none";
+      try {
+        state.series = await fetchYahoo(state.active, $("timeframe").value);
+        updateQuote(state.series, "Yahoo Finance");
+      } catch (err) {
+        state.series = sampleData();
+        updateQuote(state.series, "範例資料");
+      }
+      drawAll(state.series);
+      evaluate(state.series);
+      updateInvestmentSignals();
+    }
+
+    $("addBtn").onclick = () => {
+      const symbol = normalizeSymbol($("symbolInput").value);
+      if (symbol && !state.symbols.includes(symbol)) state.symbols.unshift(symbol);
+      state.active = symbol || state.active;
+      saveSettings();
+      renderWatchlist();
+      loadSymbol();
+    };
+    $("refreshBtn").onclick = loadSymbol;
+    $("range").onchange = () => {
+      saveSettings();
+      loadSymbol();
+    };
+    $("timeframe").onchange = () => {
+      saveSettings();
+      loadSymbol();
+      renderRecommendations();
+    };
+    $("industrySelect").onchange = () => {
+      saveSettings();
+      renderRecommendations();
+    };
+    $("chart").onmousemove = updateCrosshair;
+    $("indicatorChart").onmousemove = updateCrosshair;
+    document.querySelector(".canvas-wrap").onmouseleave = clearCrosshair;
+    document.querySelector(".canvas-wrap").addEventListener("wheel", zoomWithWheel, { passive: false });
+    ["buyMode", "rsiTrigger"].forEach(id => $(id).onchange = () => {
+      saveSettings();
+      evaluate(state.series);
+    });
+    ["stopLoss", "takeProfit"].forEach(id => $(id).onchange = () => {
+      saveSettings();
+      updatePositionPanel(id);
+      evaluate(state.series);
+    });
+    document.querySelectorAll(".lot-date, .lot-price, .lot-shares").forEach(input => input.oninput = () => {
+      updatePositionPanel();
+      saveSettings();
+    });
+    ["positionAddPrice"].forEach(id => $(id).oninput = () => {
+      updatePositionPanel(id);
+      saveSettings();
+    });
+    $("positionPullbackPct").onchange = () => {
+      updatePositionPanel("positionPullbackPct");
+      saveSettings();
+    };
+    ["positionStopPct", "positionTakePct"].forEach(id => $(id).oninput = () => {
+      saveSettings();
+      updatePositionPanel(id);
+      evaluate(state.series);
+    });
+    ["longStopPct", "longTakePct", "shortStopPct", "shortTakePct"].forEach(id => $(id).onchange = () => {
+      saveSettings();
+      updateInvestmentSignals();
+    });
+    document.querySelectorAll(".ma-check").forEach(input => input.onchange = () => {
+      saveSettings();
+      drawChart(state.series);
+    });
+    document.querySelectorAll(".chart-mode-btn").forEach(button => {
+      button.onclick = () => {
+        state.chartMode = button.dataset.chartMode;
+        document.querySelectorAll(".chart-mode-btn").forEach(tab => tab.classList.toggle("active", tab === button));
+        saveSettings();
+        drawChart(state.series);
+      };
+    });
+    document.querySelectorAll(".indicator-tab").forEach(button => {
+      button.onclick = () => {
+        state.indicator = button.dataset.indicator;
+        document.querySelectorAll(".indicator-tab").forEach(tab => tab.classList.toggle("active", tab === button));
+        saveSettings();
+        drawIndicator(state.series);
+      };
+    });
+    window.onresize = () => drawAll(state.series);
+    $("csvFile").onchange = async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      const text = await file.text();
+      const [head, ...lines] = text.trim().split(/\r?\n/);
+      const cols = head.split(",").map(x => x.trim().toLowerCase());
+      state.series = lines.map(line => {
+        const values = line.split(",");
+        const get = name => values[cols.indexOf(name)];
+        return {
+          date: new Date(get("date")),
+          open: Number(get("open")),
+          high: Number(get("high")),
+          low: Number(get("low")),
+          close: Number(get("close")),
+          volume: Number(get("volume") || 0)
+        };
+      }).filter(r => Number.isFinite(r.close));
+      updateQuote(state.series, "CSV");
+      drawAll(state.series);
+      evaluate(state.series);
+    };
+
+    marketClock();
+    setInterval(marketClock, 60000);
+    const savedSettings = restoreSettings();
+    renderWatchlist();
+    renderRecommendations(false);
+    if (savedSettings.industry) $("industrySelect").value = savedSettings.industry;
+    renderRecommendations();
+    updatePositionPanel();
+    loadSymbol();
+  </script>
+</body>
+</html>

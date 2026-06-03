@@ -1,0 +1,7 @@
+﻿services:
+  - type: web
+    name: tw-stock-watch
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
